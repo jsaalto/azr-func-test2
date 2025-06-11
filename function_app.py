@@ -2,10 +2,10 @@ import azure.functions as func
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 
-@app.route(route="get_image_exif_metadata")
+@app.route(route="get_image_exif_metadata/{image_url_param}", auth_level=func.AuthLevel.FUNCTION, methods=["GET"])
 def get_image_exif_metadata(req: func.HttpRequest) -> func.HttpResponse:
     
-    name = req.params.get('name')
+    name = req.params.get('image_url_param')
     if not name:
         try:
             req_body = req.get_json()

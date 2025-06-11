@@ -9,31 +9,25 @@ import urllib
 import azure.functions as func
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
-# Database connection parameters
-server = 'fl-campio-2025-svr.database.windows.net'
-database = 'fl-campio-2025-db'
-driver = '{ODBC Driver 18 for SQL Server}'
-
-# Get an access token using managed identity
-credential = DefaultAzureCredential()
-token_bytes = credential.get_token("https://database.windows.net/.default").token.encode("utf-16-le")
-token_struct = struct.pack(f'<I{len(token_bytes)}s', len(token_bytes), token_bytes)
-
-# Build connection string for Azure SQL with Active Directory access token
-conn_str = (
-    f'DRIVER={driver};'
-    f'SERVER={server};'
-    f'DATABASE={database};'
-    'Authentication=ActiveDirectoryMsi;'
-    'Encrypt=yes;'
-    'TrustServerCertificate=no;'
-)
-
-# When connecting, pass the access token as the attrs_before parameter:
-# with pyodbc.connect(conn_str, attrs_before={1256: token_struct}) as conn:
 
 @app.route(route="get_image_exif_metadata", auth_level=func.AuthLevel.FUNCTION, methods=["POST"])
 def get_image_exif_metadata(req: func.HttpRequest) -> func.HttpResponse:
+    
+    # Database connection parameters
+    server = 'fl-campio-2025-svr.database.windows.net'
+    database = 'fl-campio-2025-db'
+    driver = '{ODBC Driver 18 for SQL Server}'
+
+    # Build connection string for Azure SQL with Managed Identity access
+    conn_str = (
+        f'DRIVER={driver};'
+        f'SERVER={server};'
+        f'DATABASE={database};'
+        'Authentication=Active Directory Managed Identity;'
+        'Encrypt=yes;'
+        'TrustServerCertificate=no;'
+    )
+
     try:
         req_body = req.get_json()
     except ValueError:
@@ -42,11 +36,11 @@ def get_image_exif_metadata(req: func.HttpRequest) -> func.HttpResponse:
     image_url_variable = req_body.get('image_url_param')
     if image_url_variable:
         try:
-            with pyodbc.connect(conn_str) as conn:
-                with conn.cursor() as cursor:
-                    # Execute the stored procedure with image_url_variable as a parameter
-                    cursor.execute("EXEC dbo.usp_load_dbo_content_rtrn_key ?, ?, ?, ?", image_url_variable + "#img", image_url_variable, "image", image_url_variable)
-                    result = cursor.fetchone()
+            # with pyodbc.connect(conn_str) as conn:
+            #     with conn.cursor() as cursor:
+            #         # Execute the stored procedure with image_url_variable as a parameter
+            #         cursor.execute("EXEC dbo.usp_load_dbo_content_rtrn_key ?, ?, ?, ?", image_url_variable + "#img", image_url_variable, "image", image_url_variable)
+            #         result = cursor.fetchone()
             response = requests.get(image_url_variable)
             response.raise_for_status()
             image = Image.open(BytesIO(response.content))
